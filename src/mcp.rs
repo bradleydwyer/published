@@ -67,10 +67,7 @@ impl PublishedMcp {
     ) -> Result<CallToolResult, McpError> {
         let stores = resolve_stores(&params.stores);
         if stores.is_empty() {
-            return Err(McpError::invalid_params(
-                "No valid stores specified",
-                None,
-            ));
+            return Err(McpError::invalid_params("No valid stores specified", None));
         }
         let result = checker::check_app(&params.name, &stores).await;
         let json = serde_json::to_string_pretty(&result)
@@ -96,10 +93,7 @@ impl PublishedMcp {
         }
         let stores = resolve_stores(&params.stores);
         if stores.is_empty() {
-            return Err(McpError::invalid_params(
-                "No valid stores specified",
-                None,
-            ));
+            return Err(McpError::invalid_params("No valid stores specified", None));
         }
         let results = checker::check_apps(&params.names, &stores).await;
         let json = serde_json::to_string_pretty(&results)

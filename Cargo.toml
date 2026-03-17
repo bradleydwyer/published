@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2024"
 description = "App store name availability checker with CLI and MCP server"
 license = "MIT"
+repository = "https://github.com/bradleydwyer/published"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

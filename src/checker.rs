@@ -68,9 +68,7 @@ async fn check_apple(client: &Client, store: Store, name: &str) -> StoreResult {
                             let has_exact_match = arr.iter().any(|item| {
                                 item.get("trackName")
                                     .and_then(|v| v.as_str())
-                                    .is_some_and(|track_name| {
-                                        track_name.eq_ignore_ascii_case(name)
-                                    })
+                                    .is_some_and(|track_name| track_name.eq_ignore_ascii_case(name))
                             });
                             if has_exact_match {
                                 Availability::Taken

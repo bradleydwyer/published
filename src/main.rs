@@ -69,18 +69,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if cli.list_stores {
-        println!(
-            "{:<16} {:<16} {}",
-            "ID", "NAME", "PLATFORM"
-        );
+        println!("{:<16} {:<16} PLATFORM", "ID", "NAME");
         println!("{}", "-".repeat(48));
         for s in store::all_stores() {
-            println!(
-                "{:<16} {:<16} {}",
-                s.id(),
-                s.name(),
-                s.platform(),
-            );
+            println!("{:<16} {:<16} {}", s.id(), s.name(), s.platform(),);
         }
         return Ok(());
     }
