@@ -1,5 +1,9 @@
 # published
 
+<p align="center">
+  <img src="logos/published-logo-1.png" width="256" alt="published logo" />
+</p>
+
 Check if an app name is available on the Apple App Store and Google Play.
 
 Queries both stores in parallel and reports which names are taken.
