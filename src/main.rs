@@ -1,8 +1,6 @@
-use clap::{Parser, Subcommand};
-use rmcp::{ServiceExt, transport::stdio};
+use clap::Parser;
 
 use published::checker;
-use published::mcp::PublishedMcp;
 use published::store;
 use published::types::Availability;
 
@@ -13,9 +11,6 @@ use published::types::Availability;
     version
 )]
 struct Cli {
-    #[command(subcommand)]
-    command: Option<Command>,
-
     /// App names to check
     names: Vec<String>,
 
@@ -40,12 +35,6 @@ struct Cli {
     list_stores: bool,
 }
 
-#[derive(Subcommand)]
-enum Command {
-    /// Start MCP server (stdio transport)
-    Mcp,
-}
-
 fn resolve_stores(cli: &Cli) -> Vec<store::Store> {
     if cli.all {
         return store::all_stores().to_vec();
@@ -61,13 +50,6 @@ fn resolve_stores(cli: &Cli) -> Vec<store::Store> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    if let Some(Command::Mcp) = cli.command {
-        let server = PublishedMcp::new();
-        let service = server.serve(stdio()).await?;
-        service.waiting().await?;
-        return Ok(());
-    }
-
     if cli.list_stores {
         println!("{:<16} {:<16} PLATFORM", "ID", "NAME");
         println!("{}", "-".repeat(48));
@@ -79,7 +61,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if cli.names.is_empty() {
         eprintln!("Usage: published [OPTIONS] <NAMES>...");
-        eprintln!("       published mcp");
         eprintln!("       published --list-stores");
         eprintln!();
         eprintln!("Run 'published --help' for more information.");
