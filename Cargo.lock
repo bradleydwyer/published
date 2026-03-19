@@ -810,7 +810,7 @@ dependencies = [
 
 [[package]]
 name = "published"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "clap",
  "reqwest",
