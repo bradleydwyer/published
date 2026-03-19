@@ -7,7 +7,7 @@ user-invocable: true
 argument-hint: "<name> [name2 name3 ...]"
 metadata:
   author: bradleydwyer
-  version: "0.1.0"
+  version: "1.0.2"
   status: experimental
 ---
 
