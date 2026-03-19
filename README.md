@@ -100,3 +100,16 @@ This lets Claude Code check app name availability directly when you ask about it
 ## License
 
 MIT
+
+## More Tools
+
+**Naming & Availability**
+- [available](https://github.com/bradleydwyer/available) — AI-powered project name finder (uses parked, staked & published)
+- [parked](https://github.com/bradleydwyer/parked) — Domain availability checker (DNS → WHOIS → RDAP)
+- [staked](https://github.com/bradleydwyer/staked) — Package registry name checker (npm, PyPI, crates.io + 19 more)
+
+**AI Tooling**
+- [sloppy](https://github.com/bradleydwyer/sloppy) — AI prose/slop detector
+- [caucus](https://github.com/bradleydwyer/caucus) — Multi-LLM consensus engine
+- [nanaban](https://github.com/bradleydwyer/nanaban) — Gemini image generation CLI
+- [equip](https://github.com/bradleydwyer/equip) — Cross-agent skill manager
