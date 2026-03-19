@@ -40,6 +40,7 @@ async fn check_apple(client: &Client, store: Store, name: &str) -> StoreResult {
                     store_id: store.id().to_string(),
                     store_name: store.name().to_string(),
                     available: Availability::Unknown,
+                    similar_count: 0,
                     browse_url: Some(store.browse_url(name)),
                     elapsed_ms: start.elapsed().as_millis() as u64,
                     error: Some(format!("HTTP {}", response.status())),
@@ -53,6 +54,7 @@ async fn check_apple(client: &Client, store: Store, name: &str) -> StoreResult {
                         store_id: store.id().to_string(),
                         store_name: store.name().to_string(),
                         available: Availability::Unknown,
+                        similar_count: 0,
                         browse_url: Some(store.browse_url(name)),
                         elapsed_ms: start.elapsed().as_millis() as u64,
                         error: Some(e.to_string()),
@@ -60,7 +62,8 @@ async fn check_apple(client: &Client, store: Store, name: &str) -> StoreResult {
                 }
             };
 
-            let available = match serde_json::from_str::<serde_json::Value>(&body) {
+            let (available, similar_count) = match serde_json::from_str::<serde_json::Value>(&body)
+            {
                 Ok(json) => {
                     let results = json.get("results").and_then(|v| v.as_array());
                     match results {
@@ -70,22 +73,24 @@ async fn check_apple(client: &Client, store: Store, name: &str) -> StoreResult {
                                     .and_then(|v| v.as_str())
                                     .is_some_and(|track_name| track_name.eq_ignore_ascii_case(name))
                             });
-                            if has_exact_match {
+                            let availability = if has_exact_match {
                                 Availability::Taken
                             } else {
                                 Availability::Available
-                            }
+                            };
+                            (availability, arr.len())
                         }
-                        None => Availability::Unknown,
+                        None => (Availability::Unknown, 0),
                     }
                 }
-                Err(_) => Availability::Unknown,
+                Err(_) => (Availability::Unknown, 0),
             };
 
             StoreResult {
                 store_id: store.id().to_string(),
                 store_name: store.name().to_string(),
                 available,
+                similar_count,
                 browse_url: Some(store.browse_url(name)),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 error: None,
@@ -95,6 +100,7 @@ async fn check_apple(client: &Client, store: Store, name: &str) -> StoreResult {
             store_id: store.id().to_string(),
             store_name: store.name().to_string(),
             available: Availability::Unknown,
+            similar_count: 0,
             browse_url: Some(store.browse_url(name)),
             elapsed_ms: start.elapsed().as_millis() as u64,
             error: Some(e.to_string()),
@@ -116,6 +122,7 @@ async fn check_google_play(client: &Client, store: Store, name: &str) -> StoreRe
                     store_id: store.id().to_string(),
                     store_name: store.name().to_string(),
                     available: Availability::Unknown,
+                    similar_count: 0,
                     browse_url: Some(store.browse_url(name)),
                     elapsed_ms: start.elapsed().as_millis() as u64,
                     error: Some(format!("HTTP {}", response.status())),
@@ -129,6 +136,7 @@ async fn check_google_play(client: &Client, store: Store, name: &str) -> StoreRe
                         store_id: store.id().to_string(),
                         store_name: store.name().to_string(),
                         available: Availability::Unknown,
+                        similar_count: 0,
                         browse_url: Some(store.browse_url(name)),
                         elapsed_ms: start.elapsed().as_millis() as u64,
                         error: Some(e.to_string()),
@@ -136,15 +144,13 @@ async fn check_google_play(client: &Client, store: Store, name: &str) -> StoreRe
                 }
             };
 
-            // Google Play server-renders search results for SEO.
-            // Check for the exact app name in HTML element text content.
-            // Look for patterns like >Name< which indicate text within HTML elements.
-            let available = check_google_play_html(&body, name);
+            let (available, similar_count) = check_google_play_html(&body, name);
 
             StoreResult {
                 store_id: store.id().to_string(),
                 store_name: store.name().to_string(),
                 available,
+                similar_count,
                 browse_url: Some(store.browse_url(name)),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 error: None,
@@ -154,6 +160,7 @@ async fn check_google_play(client: &Client, store: Store, name: &str) -> StoreRe
             store_id: store.id().to_string(),
             store_name: store.name().to_string(),
             available: Availability::Unknown,
+            similar_count: 0,
             browse_url: Some(store.browse_url(name)),
             elapsed_ms: start.elapsed().as_millis() as u64,
             error: Some(e.to_string()),
@@ -163,41 +170,53 @@ async fn check_google_play(client: &Client, store: Store, name: &str) -> StoreRe
 
 /// Check Google Play HTML for an exact app name match.
 ///
-/// Google Play server-renders search results with app data embedded in
-/// script tags. This is a best-effort heuristic — the HTML structure
-/// may change, in which case this returns Unknown.
-fn check_google_play_html(body: &str, name: &str) -> Availability {
+/// Returns (availability, similar_count) where similar_count is the
+/// number of app results returned by the search.
+///
+/// Google Play server-renders search results. App titles appear in
+/// elements with class "DdYX5". This is a best-effort heuristic —
+/// the HTML structure may change, in which case this returns Unknown.
+fn check_google_play_html(body: &str, name: &str) -> (Availability, usize) {
     if body.len() < 1000 {
-        return Availability::Unknown;
+        return (Availability::Unknown, 0);
     }
 
-    // Check if search returned any app listings.
-    // App detail links indicate results exist.
-    let has_results = body.contains("/store/apps/details");
+    // Count app detail links to get the number of search results.
+    let similar_count = body.matches("/store/apps/details").count();
 
-    if !has_results {
-        // No app listings on the page — name is available
-        return Availability::Available;
+    if similar_count == 0 {
+        return (Availability::Available, 0);
     }
 
-    // Results exist. Check if any app has an exact name match.
-    //
-    // Google Play embeds app data in AF_initDataCallback script blocks.
-    // The search query appears once in the request data (e.g., "Slack").
-    // If an app with that exact name exists, it appears again in the
-    // result data — so >= 2 case-insensitive occurrences of "name"
-    // indicates an exact match.
+    // Extract app titles from elements with class "DdYX5" (app name elements).
     let name_lower = name.to_lowercase();
-    let body_lower = body.to_lowercase();
-    let quoted = format!("\"{name_lower}\"");
-    let occurrences = body_lower.matches(&quoted).count();
+    let class_marker = "DdYX5";
+    let mut search_from = 0;
+    let mut exact_match = false;
 
-    if occurrences >= 2 {
+    while let Some(class_pos) = body[search_from..].find(class_marker) {
+        let abs_pos = search_from + class_pos + class_marker.len();
+        // Find the next '>' after the class attribute
+        if let Some(gt_offset) = body[abs_pos..].find('>') {
+            let text_start = abs_pos + gt_offset + 1;
+            // Find the closing '<' for the text content
+            if let Some(lt_offset) = body[text_start..].find('<') {
+                let title = &body[text_start..text_start + lt_offset];
+                let title = title.trim();
+                if !title.is_empty() && title.to_lowercase() == name_lower {
+                    exact_match = true;
+                }
+            }
+        }
+        search_from = abs_pos;
+    }
+
+    let availability = if exact_match {
         Availability::Taken
     } else {
-        // Results exist but none match the exact name
         Availability::Available
-    }
+    };
+    (availability, similar_count)
 }
 
 async fn check_app_inner(

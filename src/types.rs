@@ -23,6 +23,8 @@ pub struct StoreResult {
     pub store_id: String,
     pub store_name: String,
     pub available: Availability,
+    /// Number of similar apps found in search results.
+    pub similar_count: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browse_url: Option<String>,
     pub elapsed_ms: u64,
